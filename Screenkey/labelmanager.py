@@ -195,12 +195,13 @@ class LabelManager(object):
             repl = [repl]
         for c in repl:
             if type(c) != ReplData:
-                return unicode(glib.markup_escape_text(c))
-            if c.font is None:
-                return unicode(glib.markup_escape_text(c.value))
+                result= unicode(c.encode('ascii', 'xmlcharrefreplace'))
+            elif c.font is None:
+                result= unicode(c.value.encode('ascii', 'xmlcharrefreplace'))
             elif c.font in self.font_families:
-                return '<span font_family="' + c.font + '">' + \
-                    unicode(glib.markup_escape_text(c.value)) + '</span>'
+                result= '<span font_family="' + c.font + '">' + \
+                    unicode(c.value.encode('ascii', 'xmlcharrefreplace')) + '</span>'
+            return result
 
     def update_replacement_map(self):
         self.replace_syms = {}

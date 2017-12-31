@@ -13,21 +13,21 @@ import json
 import os
 import subprocess
 
-import glib
-glib.threads_init()
+import gi
+gi.require_version('Gtk', '3.0')
 
-import pygtk
-pygtk.require('2.0')
+from gi.repository import GLib
+GLib.threads_init()
 
-import gtk
-import pango
+from gi.repository import Gtk
+from gi.repository import Pango
+from gi.repository import Gdk
 
-
-class Screenkey(gtk.Window):
-    STATE_FILE = os.path.join(glib.get_user_config_dir(), 'screenkey.json')
+class Screenkey(Gtk.Window):
+    STATE_FILE = os.path.join(GLib.get_user_config_dir(), 'screenkey.json')
 
     def __init__(self, logger, options, show_settings=False):
-        gtk.Window.__init__(self, gtk.WINDOW_POPUP)
+        Gtk.Window.__init__(self, Gtk.WindowType.POPUP)
 
         self.timer_hide = None
         self.timer_min = None
@@ -72,21 +72,21 @@ class Screenkey(gtk.Window):
         self.set_accept_focus(False)
         self.set_focus_on_map(False)
 
-        self.label = gtk.Label()
-        self.label.set_attributes(pango.AttrList())
-        self.label.set_ellipsize(pango.ELLIPSIZE_START)
-        self.label.set_justify(gtk.JUSTIFY_CENTER)
+        self.label = Gtk.Label()
+        self.label.set_attributes(Pango.AttrList())
+        self.label.set_ellipsize(Pango.EllipsizeMode.START)
+        self.label.set_justify(Pango.Alignment.CENTER)
         self.label.show()
         self.add(self.label)
 
-        self.set_gravity(gtk.gdk.GRAVITY_CENTER)
+        self.set_gravity(Gdk.Gravity.CENTER)
         self.connect("configure-event", self.on_configure)
         scr = self.get_screen()
         scr.connect("size-changed", self.on_configure)
         scr.connect("monitors-changed", self.on_monitors_changed)
         self.set_active_monitor(self.options.screen)
 
-        self.font = pango.FontDescription(self.options.font_desc)
+        self.font = Pango.FontDescription(self.options.font_desc)
         self.update_colors()
         self.update_label()
 
@@ -110,7 +110,7 @@ class Screenkey(gtk.Window):
 
     def quit(self, widget, data=None):
         self.labelmngr.stop()
-        gtk.main_quit()
+        Gtk.main_quit()
 
 
     def load_state(self):
@@ -155,24 +155,33 @@ class Screenkey(gtk.Window):
         self.set_active_monitor(self.monitor)
 
 
-    def override_font_attributes(self, attr, text):
-        window_width, window_height = self.get_size()
-        lines = text.count('\n') + 1
-        attr.insert(pango.AttrSizeAbsolute((50 * window_height // lines // 100) * 1000, 0, -1))
-        attr.insert(pango.AttrFamily(self.font.get_family(), 0, -1))
-        attr.insert(pango.AttrWeight(self.font.get_weight(), 0, -1))
-
+    def lineNumber2fontHeight(self, label):
+        """
+        calculates the font height in pixel so the lines will fit in
+        the label.
+        @param label a Gtl.WLabel
+        @return the size for a font
+        """
+        _, window_height = self.get_size()
+        lines=label.get_text().count('\n') + 1
+        return (50 * window_height // lines // 100) * 1000
 
     def update_label(self):
-        attr = self.label.get_attributes()
-        text = self.label.get_text()
-        self.override_font_attributes(attr, text)
-        self.label.set_attributes(attr)
-
+        """
+        updates the font size for the label's text to fit in the
+        window's height
+        """
+        h=self.lineNumber2fontHeight(self.label)
+        self.label.set_markup(
+            "<span style='font-size: {h}px;'>{t}</span>".format(
+                h=h, t=self.label.get_text()
+            )
+        )
+        return
 
     def update_colors(self):
-        self.label.modify_fg(gtk.STATE_NORMAL, gtk.gdk.color_parse(self.options.font_color))
-        self.modify_bg(gtk.STATE_NORMAL, gtk.gdk.color_parse(self.options.bg_color))
+        self.label.modify_fg(Gtk.StateType.NORMAL, Gdk.color_parse(self.options.font_color))
+        self.modify_bg(Gtk.StateType.NORMAL, Gdk.color_parse(self.options.bg_color))
         self.set_opacity(self.options.opacity)
 
 
@@ -180,9 +189,9 @@ class Screenkey(gtk.Window):
         window_x, window_y = self.get_position()
         window_width, window_height = self.get_size()
 
-        mask = gtk.gdk.Pixmap(None, window_width, window_height, 1)
-        gc = gtk.gdk.GC(mask)
-        gc.set_foreground(gtk.gdk.Color(pixel=0))
+        mask = Gtk.gdk.Pixmap(None, window_width, window_height, 1)
+        gc = Gtk.gdk.GC(mask)
+        gc.set_foreground(Gtk.gdk.Color(pixel=0))
         mask.draw_rectangle(gc, True, 0, 0, window_width, window_height)
         self.input_shape_combine_mask(mask, 0, 0)
 
@@ -224,7 +233,7 @@ class Screenkey(gtk.Window):
     def on_statusicon_popup(self, widget, button, timestamp, data=None):
         if button == 3 and data:
             data.show()
-            data.popup(None, None, gtk.status_icon_position_menu,
+            data.popup(None, None, Gtk.status_icon_position_menu,
                        3, timestamp, widget)
 
 
@@ -234,10 +243,9 @@ class Screenkey(gtk.Window):
 
 
     def on_label_change(self, markup):
-        attr, text, _ = pango.parse_markup(markup)
-        self.override_font_attributes(attr, text)
+        attr, text, _ = Pango.parse_markup(markup)
         self.label.set_text(text)
-        self.label.set_attributes(attr)
+        self.update_label()
 
         if not self.get_property('visible'):
             self.show()
@@ -261,7 +269,7 @@ class Screenkey(gtk.Window):
 
     def on_timeout_min(self):
         attr = self.label.get_attributes()
-        attr.change(pango.AttrUnderline(pango.UNDERLINE_NONE, 0, -1))
+        attr.change(Pango.AttrUnderline(Pango.UNDERLINE_NONE, 0, -1))
         self.label.set_attributes(attr)
 
 
@@ -312,9 +320,9 @@ class Screenkey(gtk.Window):
 
     def make_preferences_dialog(self):
         # TODO: switch to something declarative or at least clean-up the following mess
-        self.prefs = prefs = gtk.Dialog(APP_NAME, None,
-                                        gtk.DIALOG_DESTROY_WITH_PARENT,
-                                        (gtk.STOCK_CLOSE, gtk.RESPONSE_CLOSE))
+        self.prefs = prefs = Gtk.Dialog(APP_NAME, None,
+                                        Gtk.DialogFlags.DESTROY_WITH_PARENT,
+                                        (Gtk.STOCK_CLOSE, Gtk.ResponseType.CLOSE))
         prefs.connect("response", self.on_preferences_changed)
         prefs.connect("delete-event", self.on_preferences_changed)
 
@@ -407,9 +415,9 @@ class Screenkey(gtk.Window):
             except subprocess.CalledProcessError:
                 return False
             except OSError:
-                msg = gtk.MessageDialog(parent=self,
-                                        type=gtk.MESSAGE_ERROR,
-                                        buttons=gtk.BUTTONS_OK,
+                msg = Gtk.MessageDialog(parent=self,
+                                        type=Gtk.MESSAGE_ERROR,
+                                        buttons=Gtk.BUTTONS_OK,
                                         message_format="Error running \"slop\"")
                 msg.format_secondary_markup("\"slop\" is required for interactive selection. "
                                             "See <a href=\"https://github.com/naelstrof/slop\">"
@@ -445,102 +453,102 @@ class Screenkey(gtk.Window):
 
         def on_btn_font(widget, data=None):
             self.options.font_desc = widget.get_font_name()
-            self.font = pango.FontDescription(self.options.font_desc)
+            self.font = Pango.FontDescription(self.options.font_desc)
             self.update_label()
 
-        frm_main = gtk.Frame(_("Preferences"))
+        frm_main = Gtk.Frame(label=_("Preferences"))
         frm_main.set_border_width(6)
 
-        frm_time = gtk.Frame("<b>%s</b>" % _("Time"))
+        frm_time = Gtk.Frame(label="<b>%s</b>" % _("Time"))
         frm_time.set_border_width(4)
         frm_time.get_label_widget().set_use_markup(True)
-        frm_time.set_shadow_type(gtk.SHADOW_NONE)
-        vbox_time = gtk.VBox(spacing=6)
-        hbox_time = gtk.HBox()
-        lbl_time1 = gtk.Label(_("Display for"))
-        lbl_time2 = gtk.Label(_("seconds"))
-        sb_time = gtk.SpinButton(digits=1)
+        frm_time.set_shadow_type(Gtk.ShadowType.NONE)
+        vbox_time = Gtk.VBox(spacing=6)
+        hbox_time = Gtk.HBox()
+        lbl_time1 = Gtk.Label(_("Display for"))
+        lbl_time2 = Gtk.Label(_("seconds"))
+        sb_time = Gtk.SpinButton(digits=1)
         sb_time.set_increments(0.5, 1.0)
         sb_time.set_range(0.5, 10.0)
         sb_time.set_numeric(True)
-        sb_time.set_update_policy(gtk.UPDATE_IF_VALID)
+        sb_time.set_update_policy(Gtk.SpinButtonUpdatePolicy.IF_VALID)
         sb_time.set_value(self.options.timeout)
         sb_time.connect("value-changed", on_sb_time_changed)
         hbox_time.pack_start(lbl_time1, expand=False, fill=False, padding=6)
         hbox_time.pack_start(sb_time, expand=False, fill=False, padding=4)
         hbox_time.pack_start(lbl_time2, expand=False, fill=False, padding=4)
-        vbox_time.pack_start(hbox_time)
+        vbox_time.pack_start(hbox_time, expand=False, fill=False, padding=4)
 
-        chk_persist = gtk.CheckButton(_("Persistent window"))
+        chk_persist = Gtk.CheckButton(_("Persistent window"))
         chk_persist.connect("toggled", on_cbox_persist_changed)
         chk_persist.set_active(self.options.persist)
-        vbox_time.pack_start(chk_persist)
+        vbox_time.pack_start(chk_persist, expand=False, fill=False, padding=4)
 
         frm_time.add(vbox_time)
         frm_time.show_all()
 
-        frm_position = gtk.Frame("<b>%s</b>" % _("Position"))
+        frm_position = Gtk.Frame(label="<b>%s</b>" % _("Position"))
         frm_position.set_border_width(4)
         frm_position.get_label_widget().set_use_markup(True)
-        frm_position.set_shadow_type(gtk.SHADOW_NONE)
-        vbox_position = gtk.VBox(spacing=6)
+        frm_position.set_shadow_type(Gtk.ShadowType.NONE)
+        vbox_position = Gtk.VBox(spacing=6)
 
-        lbl_screen = gtk.Label(_("Screen"))
-        cbox_screen = gtk.combo_box_new_text()
+        lbl_screen = Gtk.Label(_("Screen"))
+        cbox_screen = Gtk.ComboBoxText()
         scr = self.get_screen()
         for n in range(scr.get_n_monitors()):
             cbox_screen.insert_text(n, '%d: %s' % (n, scr.get_monitor_plug_name(n)))
         cbox_screen.set_active(self.monitor)
         cbox_screen.connect("changed", on_cbox_screen_changed)
 
-        hbox0_position = gtk.HBox()
+        hbox0_position = Gtk.HBox()
         hbox0_position.pack_start(lbl_screen, expand=False, fill=False, padding=6)
         hbox0_position.pack_start(cbox_screen, expand=False, fill=False, padding=4)
-        vbox_position.pack_start(hbox0_position)
+        vbox_position.pack_start(hbox0_position, expand=False, fill=False, padding=4)
 
-        lbl_positions = gtk.Label(_("Position"))
-        self.cbox_positions = cbox_positions = gtk.combo_box_new_text()
+        lbl_positions = Gtk.Label(_("Position"))
+        self.cbox_positions = cbox_positions = Gtk.ComboBoxText()
         cbox_positions.set_name('position')
         for key, value in enumerate(POSITIONS):
             cbox_positions.insert_text(key, value)
         cbox_positions.set_active(POSITIONS.keys().index(self.options.position))
         cbox_positions.connect("changed", on_cbox_position_changed)
 
-        self.btn_reset_geom = btn_reset_geom = gtk.Button(_("Reset"))
+        self.btn_reset_geom = btn_reset_geom = Gtk.Button(_("Reset"))
         btn_reset_geom.connect("clicked", on_btn_reset_geom)
         btn_reset_geom.set_sensitive(self.options.geometry is not None)
 
-        hbox1_position = gtk.HBox()
+        hbox1_position = Gtk.HBox()
         hbox1_position.pack_start(lbl_positions, expand=False, fill=False, padding=6)
         hbox1_position.pack_start(cbox_positions, expand=False, fill=False, padding=4)
         hbox1_position.pack_start(btn_reset_geom, expand=False, fill=False, padding=4)
-        vbox_position.pack_start(hbox1_position)
+        vbox_position.pack_start(hbox1_position, expand=False, fill=False, padding=4)
 
-        btn_sel_geom = gtk.Button(_("Select window/region"))
+        btn_sel_geom = Gtk.Button(_("Select window/region"))
         btn_sel_geom.connect("clicked", on_btn_sel_geom)
-        vbox_position.pack_start(btn_sel_geom)
+        vbox_position.pack_start(btn_sel_geom, expand=False, fill=False, padding=4)
 
-        frm_aspect = gtk.Frame("<b>%s</b>" % _("Aspect"))
+        frm_aspect = Gtk.Frame(label="<b>%s</b>" % _("Aspect"))
         frm_aspect.set_border_width(4)
         frm_aspect.get_label_widget().set_use_markup(True)
-        frm_aspect.set_shadow_type(gtk.SHADOW_NONE)
-        vbox_aspect = gtk.VBox(spacing=6)
+        frm_aspect.set_shadow_type(Gtk.ShadowType.NONE)
+        vbox_aspect = Gtk.VBox(spacing=6)
 
         frm_position.add(vbox_position)
 
-        hbox0_font = gtk.HBox()
-        lbl_font = gtk.Label(_("Font"))
-        btn_font = gtk.FontButton(self.options.font_desc)
+        hbox0_font = Gtk.HBox()
+        lbl_font = Gtk.Label(_("Font"))
+        btn_font = Gtk.FontButton(self.options.font_desc)
         btn_font.set_use_size(False)
         btn_font.set_show_size(False)
         btn_font.connect("font-set", on_btn_font)
         hbox0_font.pack_start(lbl_font, expand=False, fill=False, padding=6)
         hbox0_font.pack_start(btn_font, expand=False, fill=False, padding=4)
 
-        hbox2_aspect = gtk.HBox()
+        hbox2_aspect = Gtk.HBox()
 
-        lbl_sizes = gtk.Label(_("Size"))
-        cbox_sizes = gtk.combo_box_new_text()
+        lbl_sizes = Gtk.Label(_("Size"))
+        cbox_sizes = Gtk.ComboBoxText()
         cbox_sizes.set_name('size')
         for key, value in enumerate(FONT_SIZES):
             cbox_sizes.insert_text(key, value)
@@ -550,44 +558,44 @@ class Screenkey(gtk.Window):
         hbox2_aspect.pack_start(lbl_sizes, expand=False, fill=False, padding=6)
         hbox2_aspect.pack_start(cbox_sizes, expand=False, fill=False, padding=4)
 
-        hbox3_font_color = gtk.HBox()
+        hbox3_font_color = Gtk.HBox()
 
-        lbl_font_color = gtk.Label(_("Font color"))
-        btn_font_color = gtk.ColorButton(color=gtk.gdk.color_parse(self.options.font_color))
+        lbl_font_color = Gtk.Label(_("Font color"))
+        btn_font_color = Gtk.ColorButton(color=Gdk.color_parse(self.options.font_color))
         btn_font_color.connect("color-set", on_font_color_changed)
-        btn_bg_color = gtk.ColorButton(color=gtk.gdk.color_parse(self.options.bg_color))
+        btn_bg_color = Gtk.ColorButton(color=Gdk.color_parse(self.options.bg_color))
         btn_bg_color.connect("color-set", on_bg_color_changed)
 
         hbox3_font_color.pack_start(lbl_font_color, expand=False, fill=False, padding=6)
         hbox3_font_color.pack_start(btn_font_color, expand=False, fill=False, padding=4)
         hbox3_font_color.pack_start(btn_bg_color, expand=False, fill=False, padding=4)
 
-        hbox4_aspect = gtk.HBox()
+        hbox4_aspect = Gtk.HBox()
 
-        lbl_opacity = gtk.Label(_("Opacity"))
-        adj_opacity = gtk.Adjustment(self.options.opacity, 0.1, 1.0, 0.1, 0, 0)
+        lbl_opacity = Gtk.Label(_("Opacity"))
+        adj_opacity = Gtk.Adjustment(self.options.opacity, 0.1, 1.0, 0.1, 0, 0)
         adj_opacity.connect("value-changed", on_adj_opacity_changed)
-        adj_scale = gtk.HScale(adj_opacity)
+        adj_scale = Gtk.HScale(adjustment=adj_opacity)
 
         hbox4_aspect.pack_start(lbl_opacity, expand=False, fill=False, padding=6)
         hbox4_aspect.pack_start(adj_scale, expand=True, fill=True, padding=4)
 
-        vbox_aspect.pack_start(hbox0_font)
-        vbox_aspect.pack_start(hbox2_aspect)
-        vbox_aspect.pack_start(hbox3_font_color)
-        vbox_aspect.pack_start(hbox4_aspect)
+        vbox_aspect.pack_start(hbox0_font, expand=True, fill=True, padding=4)
+        vbox_aspect.pack_start(hbox2_aspect, expand=True, fill=True, padding=4)
+        vbox_aspect.pack_start(hbox3_font_color, expand=True, fill=True, padding=4)
+        vbox_aspect.pack_start(hbox4_aspect, expand=True, fill=True, padding=4)
 
         frm_aspect.add(vbox_aspect)
 
-        frm_kbd = gtk.Frame("<b>%s</b>" % _("Keys"))
+        frm_kbd = Gtk.Frame(label="<b>%s</b>" % _("Keys"))
         frm_kbd.set_border_width(4)
         frm_kbd.get_label_widget().set_use_markup(True)
-        frm_kbd.set_shadow_type(gtk.SHADOW_NONE)
-        vbox_kbd = gtk.VBox(spacing=6)
+        frm_kbd.set_shadow_type(Gtk.ShadowType.NONE)
+        vbox_kbd = Gtk.VBox(spacing=6)
 
-        hbox_kbd = gtk.HBox()
-        lbl_kbd = gtk.Label(_("Keyboard mode"))
-        cbox_modes = gtk.combo_box_new_text()
+        hbox_kbd = Gtk.HBox()
+        lbl_kbd = Gtk.Label(_("Keyboard mode"))
+        cbox_modes = Gtk.ComboBoxText()
         cbox_modes.set_name('mode')
         for key, value in enumerate(KEY_MODES):
             cbox_modes.insert_text(key, value)
@@ -595,105 +603,105 @@ class Screenkey(gtk.Window):
         cbox_modes.connect("changed", on_cbox_modes_changed)
         hbox_kbd.pack_start(lbl_kbd, expand=False, fill=False, padding=6)
         hbox_kbd.pack_start(cbox_modes, expand=False, fill=False, padding=4)
-        vbox_kbd.pack_start(hbox_kbd)
+        vbox_kbd.pack_start(hbox_kbd, expand=False, fill=False, padding=4)
 
-        hbox_kbd = gtk.HBox()
-        lbl_kbd = gtk.Label(_("Backspace mode"))
-        cbox_modes = gtk.combo_box_new_text()
+        hbox_kbd = Gtk.HBox()
+        lbl_kbd = Gtk.Label(_("Backspace mode"))
+        cbox_modes = Gtk.ComboBoxText()
         for key, value in enumerate(BAK_MODES):
             cbox_modes.insert_text(key, value)
         cbox_modes.set_active(BAK_MODES.keys().index(self.options.bak_mode))
         cbox_modes.connect("changed", on_cbox_bak_changed)
         hbox_kbd.pack_start(lbl_kbd, expand=False, fill=False, padding=6)
         hbox_kbd.pack_start(cbox_modes, expand=False, fill=False, padding=4)
-        vbox_kbd.pack_start(hbox_kbd)
+        vbox_kbd.pack_start(hbox_kbd, expand=False, fill=False, padding=4)
 
-        hbox_kbd = gtk.HBox()
-        lbl_kbd = gtk.Label(_("Modifiers mode"))
-        cbox_modes = gtk.combo_box_new_text()
+        hbox_kbd = Gtk.HBox()
+        lbl_kbd = Gtk.Label(_("Modifiers mode"))
+        cbox_modes = Gtk.ComboBoxText()
         for key, value in enumerate(MODS_MODES):
             cbox_modes.insert_text(key, value)
         cbox_modes.set_active(MODS_MODES.keys().index(self.options.mods_mode))
         cbox_modes.connect("changed", on_cbox_mods_changed)
         hbox_kbd.pack_start(lbl_kbd, expand=False, fill=False, padding=6)
         hbox_kbd.pack_start(cbox_modes, expand=False, fill=False, padding=4)
-        vbox_kbd.pack_start(hbox_kbd)
+        vbox_kbd.pack_start(hbox_kbd, expand=False, fill=False, padding=4)
 
-        chk_kbd = gtk.CheckButton(_("Show Modifier sequences only"))
+        chk_kbd = Gtk.CheckButton(_("Show Modifier sequences only"))
         chk_kbd.connect("toggled", on_cbox_modsonly_changed)
         chk_kbd.set_active(self.options.mods_only)
-        vbox_kbd.pack_start(chk_kbd)
+        vbox_kbd.pack_start(chk_kbd, expand=False, fill=False, padding=4)
 
-        chk_kbd = gtk.CheckButton(_("Always show Shift"))
+        chk_kbd = Gtk.CheckButton(_("Always show Shift"))
         chk_kbd.connect("toggled", on_cbox_visshift_changed)
         chk_kbd.set_active(self.options.vis_shift)
-        vbox_kbd.pack_start(chk_kbd)
+        vbox_kbd.pack_start(chk_kbd, expand=False, fill=False, padding=4)
 
-        chk_vspace = gtk.CheckButton(_("Show Whitespace characters"))
+        chk_vspace = Gtk.CheckButton(_("Show Whitespace characters"))
         chk_vspace.set_active(self.options.vis_space)
         chk_vspace.connect("toggled", on_cbox_visspace_changed)
-        vbox_kbd.pack_start(chk_vspace)
+        vbox_kbd.pack_start(chk_vspace, expand=False, fill=False, padding=4)
 
-        hbox_compr = gtk.HBox()
-        chk_compr = gtk.CheckButton(_("Compress repeats after"))
+        hbox_compr = Gtk.HBox()
+        chk_compr = Gtk.CheckButton(_("Compress repeats after"))
         chk_compr.set_active(self.options.compr_cnt > 0)
         chk_compr.connect("toggled", on_cbox_compr_changed)
-        self.sb_compr = sb_compr = gtk.SpinButton(digits=0)
+        self.sb_compr = sb_compr = Gtk.SpinButton(digits=0)
         sb_compr.set_increments(1, 1)
         sb_compr.set_range(1, 100)
         sb_compr.set_numeric(True)
-        sb_compr.set_update_policy(gtk.UPDATE_IF_VALID)
+        sb_compr.set_update_policy(Gtk.SpinButtonUpdatePolicy.IF_VALID)
         sb_compr.set_value(self.options.compr_cnt or 3)
         sb_compr.connect("value-changed", on_sb_compr_changed)
-        hbox_compr.pack_start(chk_compr, expand=False, fill=False)
+        hbox_compr.pack_start(chk_compr, expand=False, fill=False, padding=4)
         hbox_compr.pack_start(sb_compr, expand=False, fill=False, padding=4)
-        vbox_kbd.pack_start(hbox_compr)
+        vbox_kbd.pack_start(hbox_compr, expand=False, fill=False, padding=4)
 
         frm_kbd.add(vbox_kbd)
 
-        hbox_main = gtk.HBox()
-        vbox_main = gtk.VBox()
+        hbox_main = Gtk.HBox()
+        vbox_main = Gtk.VBox()
         vbox_main.pack_start(frm_time, False, False, 6)
         vbox_main.pack_start(frm_position, False, False, 6)
         vbox_main.pack_start(frm_aspect, False, False, 6)
-        hbox_main.pack_start(vbox_main)
-        vbox_main = gtk.VBox()
+        hbox_main.pack_start(vbox_main, expand=False, fill=False, padding=4)
+        vbox_main = Gtk.VBox()
         vbox_main.pack_start(frm_kbd, False, False, 6)
-        hbox_main.pack_start(vbox_main)
+        hbox_main.pack_start(vbox_main, expand=False, fill=False, padding=4)
         frm_main.add(hbox_main)
 
-        prefs.vbox.pack_start(frm_main)
+        prefs.vbox.pack_start(frm_main, expand=False, fill=False, padding=4)
         prefs.set_destroy_with_parent(True)
         prefs.set_resizable(False)
-        prefs.set_has_separator(False)
-        prefs.set_default_response(gtk.RESPONSE_CLOSE)
+        # prefs.set_has_separator(False) #!!! how to port this sentence?
+        prefs.set_default_response(Gtk.ResponseType.CLOSE)
         prefs.vbox.show_all()
 
 
     def make_menu(self):
-        self.menu = menu = gtk.Menu()
+        self.menu = menu = Gtk.Menu()
 
-        show_item = gtk.CheckMenuItem(_("Show keys"))
+        show_item = Gtk.CheckMenuItem(_("Show keys"))
         show_item.set_active(True)
         show_item.connect("toggled", self.on_show_keys)
         show_item.show()
         menu.append(show_item)
 
-        preferences_item = gtk.ImageMenuItem(gtk.STOCK_PREFERENCES)
+        preferences_item = Gtk.ImageMenuItem(Gtk.STOCK_PREFERENCES)
         preferences_item.connect("activate", self.on_preferences_dialog)
         preferences_item.show()
         menu.append(preferences_item)
 
-        about_item = gtk.ImageMenuItem(gtk.STOCK_ABOUT)
+        about_item = Gtk.ImageMenuItem(Gtk.STOCK_ABOUT)
         about_item.connect("activate", self.on_about_dialog)
         about_item.show()
         menu.append(about_item)
 
-        separator_item = gtk.SeparatorMenuItem()
+        separator_item = Gtk.SeparatorMenuItem()
         separator_item.show()
         menu.append(separator_item)
 
-        image = gtk.ImageMenuItem(gtk.STOCK_QUIT)
+        image = Gtk.ImageMenuItem(Gtk.STOCK_QUIT)
         image.connect("activate", self.quit)
         image.show()
         menu.append(image)
@@ -711,14 +719,14 @@ class Screenkey(gtk.Window):
             self.systray.set_menu(self.menu)
             self.logger.debug("Using AppIndicator.")
         except ImportError:
-            self.systray = gtk.StatusIcon()
+            self.systray = Gtk.StatusIcon()
             self.systray.set_from_icon_name("preferences-desktop-keyboard-shortcuts")
             self.systray.connect("popup-menu", self.on_statusicon_popup, self.menu)
             self.logger.debug("Using StatusIcon.")
 
 
     def make_about_dialog(self):
-        self.about = about = gtk.AboutDialog()
+        self.about = about = Gtk.AboutDialog()
         about.set_program_name(APP_NAME)
         about.set_version(VERSION)
         about.set_copyright("""
@@ -742,4 +750,4 @@ class Screenkey(gtk.Window):
 
 
 def run():
-    gtk.main()
+    Gtk.main()
