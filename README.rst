@@ -6,7 +6,7 @@ Screencast your keys.
 
 A screencast tool to display your keys, inspired by Screenflick_.
 
-This is an almost-complete rewrite of screenkey_ 0.2, featuring:
+screenkey_ 0.9 was an almost-complete rewrite of screenkey_ 0.2, featuring:
 
 - Several keyboard translation methods
 - Key composition/input method support
@@ -20,6 +20,8 @@ This is an almost-complete rewrite of screenkey_ 0.2, featuring:
 - Repeats compression
 - Countless bug fixes
 
+Now, screenkey_ 0.10 is a rewrite of the previous, which drops pygtk
+and uses PyGobjet, (Python3 & Gtk+ 3).
 
 Installation and basic usage
 ----------------------------
@@ -34,8 +36,8 @@ To install::
 
 Dependencies:
 
-- Python 2.7 (Python 3 support yet incomplete)
-- PyGTK
+- Python 3
+- python3-gi
 - setuptools (build only)
 - DistUtils-Extra (build only)
 - slop (https://github.com/naelstrof/slop)
@@ -44,7 +46,7 @@ Dependencies:
 
 Install dependencies (on Debian/Ubuntu)::
 
-  sudo apt-get install python-gtk2 python-setuptools python-distutils-extra
+  sudo apt-get install python3-gi python-setuptools python-distutils-extra
 
 You can also install "screenkey" via ArchLinux's AUR package:
 
@@ -274,10 +276,11 @@ Authors and Copyright
 | "screenkey" is distributed under GNU GPLv3+, WITHOUT ANY WARRANTY.
 | Copyright(c) 2010-2012: Pablo Seminario <pabluk@gmail.com>
 | Copyright(c) 2015-2016: wave++ "Yuri D'Elia" <wavexx@thregr.org>.
+| Copyright(c) 2019:      Georges Khaznadar <georgesk@debian.org>
 
 screenkey's GIT repository is publicly accessible at:
 
-https://github.com/wavexx/screenkey
+https://salsa.debian.org/georgesk/screenkey
 
 
 Additional Thanks
