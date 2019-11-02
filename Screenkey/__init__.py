@@ -1,4 +1,5 @@
 import gettext
+from collections import OrderedDict
 
 gettext.install('screenkey')
 
@@ -9,12 +10,14 @@ APP_URL = 'http://www.thregr.org/~wavexx/software/screenkey/'
 VERSION = '0.9'
 
 # CLI/Interface options
-POSITIONS = {
-    'top': _('Top'),
-    'center': _('Center'),
-    'bottom': _('Bottom'),
-    'fixed': _('Fixed'),
-}
+POSITIONS = OrderedDict(
+    [
+        ('top', _('Top')),
+        ('center', _('Center')),
+        ('bottom', _('Bottom')),
+        ('fixed', _('Fixed')),
+    ]
+)
 
 FONT_SIZES = {
     'large': _('Large'),

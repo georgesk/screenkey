@@ -112,7 +112,6 @@ class Screenkey(Gtk.Window):
 
 
     def quit(self, widget, data=None):
-        print ("Hello, quit")
         self.labelmngr.stop()
         Gtk.main_quit()
 
@@ -235,9 +234,7 @@ class Screenkey(Gtk.Window):
     def on_statusicon_popup(self, widget, button, timestamp, data=None):
         if button == 3 and data:
             data.show()
-            data.popup(None, None, Gtk.status_icon_position_menu,
-                       3, timestamp, widget)
-
+            data.popup(None, None, None, widget, 3, timestamp)
 
     def show(self):
         self.update_geometry()
@@ -373,7 +370,7 @@ class Screenkey(Gtk.Window):
 
         def on_cbox_position_changed(widget, data=None):
             index = widget.get_active()
-            new_position = POSITIONS.keys()[index]
+            new_position = list(POSITIONS.keys())[index]
             if new_position == 'fixed':
                 new_geom = on_btn_sel_geom(widget)
                 if not new_geom:
@@ -689,12 +686,12 @@ class Screenkey(Gtk.Window):
         show_item.show()
         menu.append(show_item)
 
-        preferences_item = Gtk.ImageMenuItem(Gtk.STOCK_PREFERENCES)
+        preferences_item = Gtk.MenuItem(_("Preferences"))
         preferences_item.connect("activate", self.on_preferences_dialog)
         preferences_item.show()
         menu.append(preferences_item)
 
-        about_item = Gtk.ImageMenuItem(Gtk.STOCK_ABOUT)
+        about_item = Gtk.MenuItem(_("About"))
         about_item.connect("activate", self.on_about_dialog)
         about_item.show()
         menu.append(about_item)
@@ -703,7 +700,7 @@ class Screenkey(Gtk.Window):
         separator_item.show()
         menu.append(separator_item)
 
-        image = Gtk.ImageMenuItem(Gtk.STOCK_QUIT)
+        image = Gtk.MenuItem(_("Quit"))
         image.connect("activate", self.quit)
         image.show()
         menu.append(image)
@@ -742,12 +739,15 @@ class Screenkey(Gtk.Window):
         about.set_website(APP_URL)
         about.set_icon_name('preferences-desktop-keyboard-shortcuts')
         about.set_logo_icon_name('preferences-desktop-keyboard-shortcuts')
-        about.connect("response", about.hide_on_delete)
-        about.connect("delete-event", about.hide_on_delete)
+        about.connect("response", self.on_hide_about)
+        about.connect("delete-event", self.on_hide_about)
 
 
     def on_about_dialog(self, widget, data=None):
         self.about.show()
+
+    def on_hide_about(self, widget, data=None):
+        self.about.hide()
 
 
 
