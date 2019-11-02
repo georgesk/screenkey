@@ -6,7 +6,7 @@
 from __future__ import print_function, unicode_literals, absolute_import, generators
 
 from .inputlistener import InputListener, InputType
-import glib
+from gi.repository import GLib
 
 from collections import namedtuple
 from datetime import datetime
@@ -193,14 +193,14 @@ class LabelManager(object):
     def get_repl_markup(self, repl):
         if type(repl) != list:
             repl = [repl]
+        result=None
         for c in repl:
             if type(c) != ReplData:
-                result= unicode(c.encode('ascii', 'xmlcharrefreplace'))
+                result= c
             elif c.font is None:
-                result= unicode(c.value.encode('ascii', 'xmlcharrefreplace'))
+                result= c
             elif c.font in self.font_families:
-                result= '<span font_family="' + c.font + '">' + \
-                    unicode(c.value.encode('ascii', 'xmlcharrefreplace')) + '</span>'
+                result= f'<span font_family="{c.font}">{c.value}</span>'
             return result
 
     def update_replacement_map(self):
@@ -348,7 +348,7 @@ class LabelManager(object):
                 return False
             else:
                 repl = event.string or event.symbol
-                markup = unicode(glib.markup_escape_text(repl))
+                markup = GLib.markup_escape_text(repl)
                 key_repl = KeyRepl(False, False, len(repl) > 1, markup)
 
         if event.modifiers['shift'] and \
@@ -411,7 +411,7 @@ class LabelManager(object):
                 return False
             else:
                 repl = event.string.upper() if event.string else event.symbol
-                markup = unicode(glib.markup_escape_text(repl))
+                markup = GLib.markup_escape_text(repl)
                 key_repl = KeyRepl(False, False, len(repl) > 1, markup)
 
         if mod == '':

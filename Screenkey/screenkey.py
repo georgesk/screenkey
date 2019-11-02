@@ -3,6 +3,11 @@
 # Copyright(c) 2010-2012: Pablo Seminario <pabluk@gmail.com>
 # Copyright(c) 2015-2016: wave++ "Yuri D'Elia" <wavexx@thregr.org>.
 
+# suggestion : https://askubuntu.com/questions/181850/change-font-programmatically-for-gtk3-textview-quickly-widgets-texteditor
+# self.textview.override_font(
+#    Pango.font_description_from_string('DejaVu Sans Mono 12')
+#    )
+
 from __future__ import print_function, unicode_literals, division
 
 from . import *
@@ -59,12 +64,12 @@ class Screenkey(Gtk.Window):
             self.options = defaults
         else:
             # copy missing defaults
-            for k, v in defaults.iteritems():
+            for k, v in defaults.items():
                 if k not in self.options:
                     self.options[k] = v
         if options is not None:
             # override with values from constructor
-            for k, v in options.iteritems():
+            for k, v in options.items():
                 if v is not None:
                     self.options[k] = v
 
@@ -73,9 +78,7 @@ class Screenkey(Gtk.Window):
         self.set_focus_on_map(False)
 
         self.label = Gtk.Label()
-        self.label.set_attributes(Pango.AttrList())
-        self.label.set_ellipsize(Pango.EllipsizeMode.START)
-        self.label.set_justify(Pango.Alignment.CENTER)
+        #self.label.set_justify(Pango.Alignment.CENTER) ###!!! how to port ?
         self.label.show()
         self.add(self.label)
 
@@ -109,6 +112,7 @@ class Screenkey(Gtk.Window):
 
 
     def quit(self, widget, data=None):
+        print ("Hello, quit")
         self.labelmngr.stop()
         Gtk.main_quit()
 
@@ -159,12 +163,13 @@ class Screenkey(Gtk.Window):
         """
         calculates the font height in pixel so the lines will fit in
         the label.
-        @param label a Gtl.WLabel
+        @param label a Gtk.Label
         @return the size for a font
         """
         _, window_height = self.get_size()
-        lines=label.get_text().count('\n') + 1
-        return (50 * window_height // lines // 100) * 1000
+        lines=str(label.get_text()).count('\n') + 1
+        #return (50 * window_height // lines // 100) * 1000
+        return (50 * window_height // lines // 100)
 
     def update_label(self):
         """
@@ -172,11 +177,8 @@ class Screenkey(Gtk.Window):
         window's height
         """
         h=self.lineNumber2fontHeight(self.label)
-        self.label.set_markup(
-            "<span style='font-size: {h}px;'>{t}</span>".format(
-                h=h, t=self.label.get_text()
-            )
-        )
+        self.font=Pango.FontDescription('Sans Bold {}'.format(h))
+        self.label.override_font(self.font)
         return
 
     def update_colors(self):
@@ -189,17 +191,17 @@ class Screenkey(Gtk.Window):
         window_x, window_y = self.get_position()
         window_width, window_height = self.get_size()
 
-        mask = Gtk.gdk.Pixmap(None, window_width, window_height, 1)
+        """ IS THIS NECESSARY?
+        mask = Pixmap(None, window_width, window_height, 1)
         gc = Gtk.gdk.GC(mask)
         gc.set_foreground(Gtk.gdk.Color(pixel=0))
         mask.draw_rectangle(gc, True, 0, 0, window_width, window_height)
         self.input_shape_combine_mask(mask, 0, 0)
-
+        """
         # set some proportional inner padding
         self.label.set_padding(window_width // 100, 0)
 
         self.update_label()
-
 
     def update_geometry(self, configure=False):
         if self.options.position == 'fixed' and self.options.geometry is not None:
@@ -243,8 +245,7 @@ class Screenkey(Gtk.Window):
 
 
     def on_label_change(self, markup):
-        attr, text, _ = Pango.parse_markup(markup)
-        self.label.set_text(text)
+        self.label.set_markup(markup)
         self.update_label()
 
         if not self.get_property('visible'):
@@ -269,8 +270,9 @@ class Screenkey(Gtk.Window):
 
     def on_timeout_min(self):
         attr = self.label.get_attributes()
-        attr.change(Pango.AttrUnderline(Pango.UNDERLINE_NONE, 0, -1))
-        self.label.set_attributes(attr)
+        if attr:
+            attr.change(Pango.AttrUnderline(Pango.UNDERLINE_NONE, 0, -1))
+            self.label.set_attributes(attr)
 
 
     def restart_labelmanager(self):
@@ -375,7 +377,7 @@ class Screenkey(Gtk.Window):
             if new_position == 'fixed':
                 new_geom = on_btn_sel_geom(widget)
                 if not new_geom:
-                    self.cbox_positions.set_active(POSITIONS.keys().index(self.options.position))
+                    self.cbox_positions.set_active(list(POSITIONS.keys()).index(self.options.position))
                     return
             elif self.options.position == 'fixed':
                 # automatically clear geometry
@@ -435,7 +437,7 @@ class Screenkey(Gtk.Window):
             self.options.geometry = None
             if self.options.position == 'fixed':
                 self.options.position = 'bottom'
-                self.cbox_positions.set_active(POSITIONS.keys().index(self.options.position))
+                self.cbox_positions.set_active(list(POSITIONS.keys()).index(self.options.position))
             self.update_geometry()
             widget.set_sensitive(False)
 
@@ -511,7 +513,7 @@ class Screenkey(Gtk.Window):
         cbox_positions.set_name('position')
         for key, value in enumerate(POSITIONS):
             cbox_positions.insert_text(key, value)
-        cbox_positions.set_active(POSITIONS.keys().index(self.options.position))
+        cbox_positions.set_active(list(POSITIONS.keys()).index(self.options.position))
         cbox_positions.connect("changed", on_cbox_position_changed)
 
         self.btn_reset_geom = btn_reset_geom = Gtk.Button(_("Reset"))
@@ -552,7 +554,7 @@ class Screenkey(Gtk.Window):
         cbox_sizes.set_name('size')
         for key, value in enumerate(FONT_SIZES):
             cbox_sizes.insert_text(key, value)
-        cbox_sizes.set_active(FONT_SIZES.keys().index(self.options.font_size))
+        cbox_sizes.set_active(list(FONT_SIZES.keys()).index(self.options.font_size))
         cbox_sizes.connect("changed", on_cbox_sizes_changed)
 
         hbox2_aspect.pack_start(lbl_sizes, expand=False, fill=False, padding=6)
@@ -599,7 +601,7 @@ class Screenkey(Gtk.Window):
         cbox_modes.set_name('mode')
         for key, value in enumerate(KEY_MODES):
             cbox_modes.insert_text(key, value)
-        cbox_modes.set_active(KEY_MODES.keys().index(self.options.key_mode))
+        cbox_modes.set_active(list(KEY_MODES.keys()).index(self.options.key_mode))
         cbox_modes.connect("changed", on_cbox_modes_changed)
         hbox_kbd.pack_start(lbl_kbd, expand=False, fill=False, padding=6)
         hbox_kbd.pack_start(cbox_modes, expand=False, fill=False, padding=4)
@@ -610,7 +612,7 @@ class Screenkey(Gtk.Window):
         cbox_modes = Gtk.ComboBoxText()
         for key, value in enumerate(BAK_MODES):
             cbox_modes.insert_text(key, value)
-        cbox_modes.set_active(BAK_MODES.keys().index(self.options.bak_mode))
+        cbox_modes.set_active(list(BAK_MODES.keys()).index(self.options.bak_mode))
         cbox_modes.connect("changed", on_cbox_bak_changed)
         hbox_kbd.pack_start(lbl_kbd, expand=False, fill=False, padding=6)
         hbox_kbd.pack_start(cbox_modes, expand=False, fill=False, padding=4)
@@ -621,7 +623,7 @@ class Screenkey(Gtk.Window):
         cbox_modes = Gtk.ComboBoxText()
         for key, value in enumerate(MODS_MODES):
             cbox_modes.insert_text(key, value)
-        cbox_modes.set_active(MODS_MODES.keys().index(self.options.mods_mode))
+        cbox_modes.set_active(list(MODS_MODES.keys()).index(self.options.mods_mode))
         cbox_modes.connect("changed", on_cbox_mods_changed)
         hbox_kbd.pack_start(lbl_kbd, expand=False, fill=False, padding=6)
         hbox_kbd.pack_start(cbox_modes, expand=False, fill=False, padding=4)
